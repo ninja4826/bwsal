@@ -1,11 +1,15 @@
 package me.ninja4826.bwsal.build;
 
+import java.util.ArrayList;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListMap;
 
+import bwapi.Order;
 import bwapi.Race;
 import bwapi.TechType;
+import bwapi.TilePosition;
+import bwapi.Unit;
 import bwapi.UnitType;
 import bwapi.UpgradeType;
 import me.ninja4826.bwsal.util.Pair;
@@ -397,6 +401,15 @@ public class BuildType {
 		public static BuildType None = new BuildType(202);
 	}
 	
+	public enum Compare {
+		EQUAL,
+		GREATER,
+		GREATER_EQUAL,
+		LESS,
+		LESS_EQUAL,
+		NOT
+	}
+	
 	ConcurrentSkipListMap<String, BuildType> buildTypeMap;
 	Set<BuildType> buildTypeSet;
 	ConcurrentSkipListMap<Race, Set<BuildType>> buildTypeSetByRace;
@@ -484,6 +497,24 @@ public class BuildType {
 		return this;
 	}
 	
+	public boolean compare(BuildType other, Compare comp) {
+		switch (comp) {
+		case EQUAL:
+			return this.id == other.id;
+		case GREATER:
+			return this.id > other.id;
+		case GREATER_EQUAL:
+			return this.id >= other.id;
+		case LESS:
+			return this.id < other.id;
+		case LESS_EQUAL:
+			return this.id < other.id;
+		case NOT:
+			return this.id != other.id;
+		}
+		return false;
+	}
+	
 	public boolean equals(BuildType other) { return this.id == other.id; }
 	
 	public boolean equals(TechType other) { return this.id == new BuildType(other).id; }
@@ -492,5 +523,180 @@ public class BuildType {
 	
 	public boolean equals(UpgradeType other) { return this.id == new BuildType(other).id; }
 	
+	public int toInt() { return this.id; }
 	
+	public int getID() { return this.id; }
+	
+	public String getName() { return buildTypeData[this.id].name; }
+	
+	public Race getRace() { return buildTypeData[this.id].race; }
+	
+	public boolean isTechType() { return buildTypeData[this.id].techType != TechType.None; }
+	
+	public boolean isUnitType() { return buildTypeData[this.id].unitType != UnitType.None; }
+	
+	public boolean isUpgradeType() { return buildTypeData[this.id].upgradeType != UpgradeType.None; }
+	
+	public TechType getTechType() { return buildTypeData[this.id].techType; }
+	
+	public UnitType getUnitType() { return buildTypeData[this.id].unitType; }
+	
+	public UpgradeType getUpgradeType() { return buildTypeData[this.id].upgradeType; }
+	
+	public int getUpgradeLevel() { return buildTypeData[this.id].upgradeLevel; }
+	
+	public long getMask() { return buildTypeData[this.id].mask; }
+	
+	public long getRequiredMask() { return buildTypeData[this.id].requiredMask; }
+	
+	public Pair<BuildType, Integer> whatBuilds() { return buildTypeData[this.id].whatBuilds; }
+	
+	public ConcurrentSkipListMap<BuildType, Integer> requiredBuildTypes() { return buildTypeData[this.id].requiredBuildTypes; }
+	
+	public boolean requiresPsi() { return buildTypeData[this.id].requiresPsi; }
+	
+	public boolean requiresLarva() { return buildTypeData[this.id].requiresLarva; }
+	
+	public BuildType requiredAddon() { return buildTypeData[this.id].requiredAddon; }
+	
+	public int mineralPrice() { return buildTypeData[this.id].mineralPrice; }
+	
+	public int gasPrice() { return buildTypeData[this.id].gasPrice; }
+	
+	public int builderTime() { return buildTypeData[this.id].builderTime; }
+	
+	public int buildUnitTime() { return buildTypeData[this.id].buildUnitTime; }
+	
+	public int prepTime() { return buildTypeData[this.id].prepTime; }
+	
+	public boolean createsUnit() { return buildTypeData[this.id].createsUnit; }
+	
+	public boolean morphsBuilder() { return buildTypeData[this.id].morphsBuilder; }
+	
+	public boolean needsBuildLocation() { return buildTypeData[this.id].needsBuildLocation; }
+	
+	public int supplyRequired() { return buildTypeData[this.id].supplyRequired; }
+	
+	public int supplyProvided() { return buildTypeData[this.id].supplyProvided; }
+	
+	public boolean build(Unit builder, Unit secondBuilder, TilePosition buildLocation) {
+		if (builder == null) return false;
+		BuildTypeInternal buildType = buildTypeData[this.id];
+		if (buildType.techType != TechType.None) return builder.research(buildType.techType);
+		if (buildType.upgradeType != UpgradeType.None) return builder.upgrade(buildType.upgradeType);
+		
+		if (buildType.unitType != UnitType.None) {
+			if (buildType.unitType == UnitType.Protoss_Archon) return builder.useTech(TechType.Archon_Warp, secondBuilder);
+			if (buildType.unitType == UnitType.Protoss_Dark_Archon) return builder.useTech(TechType.Dark_Archon_Meld, secondBuilder);
+			if (buildType.unitType.isAddon()) return builder.buildAddon(buildType.unitType);
+			if (buildType.unitType.isBuilding() == buildType.unitType.whatBuilds().first.isBuilding()) return builder.morph(buildType.unitType);
+			if (buildType.unitType.isBuilding()) return builder.build(buildType.unitType, buildLocation);
+			return builder.train(buildType.unitType);
+		}
+		return false;
+	}
+	
+	public boolean isPreparing(Unit builder, Unit secondBuilder) {
+		if (builder == null) return false;
+		
+		BuildTypeInternal buildType = buildTypeData[this.id];
+		
+		if (buildType.techType != TechType.None) return builder.isResearching() && builder.getTech() == buildType.techType;
+		if (buildType.upgradeType != UpgradeType.None) return builder.isUpgrading() && builder.getUpgrade() == buildType.upgradeType;
+		if (buildType.unitType != UnitType.None) {
+			return builder.isConstructing() ||
+					builder.isBeingConstructed() ||
+					builder.isMorphing() ||
+					builder.isTraining() ||
+					builder.getOrder() == Order.ArchonWarp ||
+					builder.getOrder() == Order.DarkArchonMeld;
+		}
+		return false;
+	}
+	
+	public boolean isBuilding(Unit builder, Unit secondBuilder, Unit createdUnit) {
+		if (builder == null) return false;
+		BuildTypeInternal buildType = buildTypeData[this.id];
+		
+		if (buildType.techType != TechType.None) return builder.isResearching() && builder.getTech() == buildType.techType;
+		if (buildType.upgradeType != UpgradeType.None) return builder.isUpgrading() && builder.getUpgrade() == buildType.upgradeType;
+		if (buildType.unitType != UnitType.None) {
+			if (buildType.unitType == UnitType.Protoss_Archon) return builder.getBuildType() == UnitType.Protoss_Archon || secondBuilder.getBuildType() == UnitType.Protoss_Archon;
+			if (buildType.unitType == UnitType.Protoss_Dark_Archon) return builder.getBuildType() == UnitType.Protoss_Dark_Archon || secondBuilder.getBuildType() == UnitType.Protoss_Dark_Archon;
+			if (buildType.unitType.isAddon()) {
+				return createdUnit != null &&
+						createdUnit.exists() &&
+						createdUnit.isConstructing() &&
+						createdUnit.getType() == buildType.unitType;
+			}
+			if (buildType.morphsBuilder) return builder.isConstructing() || builder.isMorphing();
+			if (buildType.unitType.isBuilding()) {
+				return createdUnit != null &&
+						createdUnit.exists() &&
+						createdUnit.isConstructing() &&
+						createdUnit.getType() == buildType.unitType;
+			}
+			ArrayList<UnitType> trainingQueue = new ArrayList<>();
+			
+			return builder.isTraining();
+		}
+		return false;
+	}
+	
+	public boolean isCompleted(Unit builder, Unit secondBuilder, Unit createdUnit, Unit secondCreatedUnit) {
+		BuildTypeInternal buildType = buildTypeData[this.id];
+//		if (buildType.techType != TechType.None) return hasResearched(buildType.techType);
+	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
