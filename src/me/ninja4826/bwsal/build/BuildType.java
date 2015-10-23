@@ -1,6 +1,5 @@
 package me.ninja4826.bwsal.build;
 
-import java.util.ArrayList;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -636,17 +635,15 @@ public class BuildType {
 						createdUnit.isConstructing() &&
 						createdUnit.getType() == buildType.unitType;
 			}
-			ArrayList<UnitType> trainingQueue = new ArrayList<>();
 			
 			return builder.isTraining();
 		}
 		return false;
 	}
-	
-	public boolean isCompleted(Unit builder, Unit secondBuilder, Unit createdUnit, Unit secondCreatedUnit) {
-		BuildTypeInternal buildType = buildTypeData[this.id];
+//	public boolean isCompleted(Unit builder, Unit secondBuilder, Unit createdUnit, Unit secondCreatedUnit) {
+//		BuildTypeInternal buildType = buildTypeData[this.id];
 //		if (buildType.techType != TechType.None) return hasResearched(buildType.techType);
-	}
+//	}
 }
 
 
